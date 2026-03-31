@@ -532,7 +532,7 @@ namespace MusicBeePlugin
                 case PlayState.Stopped:
                 case PlayState.Undefined:
                     {
-                        var stopEvent = new PlayEvent();
+                        var stopEvent = new StopEvent();
                         json_event = JsonConvert.SerializeObject(stopEvent);
                     }
                     break;
