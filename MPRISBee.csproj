@@ -118,6 +118,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Logger.cs" />
     <Compile Include="Syscalls.cs" />
     <Compile Include="MusicBeeInterface.cs" />
     <Compile Include="MPRISBee.cs" />
@@ -150,10 +151,6 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="linux_syscalls.c" />
-    <Content Include="linux_syscalls.def" />
-  </ItemGroup>
-  <ItemGroup>
     <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
@@ -162,7 +159,7 @@
     </PreBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <LangVersion>10.0</LangVersion>
+    <LangVersion>9</LangVersion>
   </PropertyGroup>
   <PropertyGroup>
     <NativeOutputPath>../mprisbee-dbus/target/$(Configuration.ToLowerInvariant())/</NativeOutputPath>

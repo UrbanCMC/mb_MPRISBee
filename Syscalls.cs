@@ -1,47 +1,51 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using MusicBeePlugin;
 
 namespace LinuxSys
 {
     public static class Syscalls
     {
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern uint l_getpid();
+        [StructLayout(LayoutKind.Sequential)]
+        public class WSAData
+        {
+            public short wVersion;
+            public short wHighVersion;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 257)]
+            public string szDescription;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 129)]
+            public string szSystemStatus;
+            public short iMaxSockets;
+            public short iMaxUdpDg;
+            public IntPtr lpVendorInfo;
+        }
 
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern uint l_getuid();
+        [DllImport("ws2_32.dll", SetLastError = true)]
+        public static extern int WSAStartup(short wVersionRequested, IntPtr lpWSAData);
 
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int l_close(int fd);
+        [DllImport("ws2_32.dll", SetLastError = true)]
+        public static extern int WSACleanup();
 
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int l_socketcall(int call, IntPtr args);
+        [DllImport("ws2_32.dll", SetLastError = true)]
+        public static extern IntPtr socket(int af, int type, int protocol);
 
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        public static extern int l_open([MarshalAs(UnmanagedType.LPStr)] string filename, int flags, int mode);
+        [DllImport("ws2_32.dll", SetLastError = true)]
+        public static extern int connect(IntPtr s, byte[] name, int namelen);
 
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int l_write(uint fd, byte[] buf, uint count);
+        [DllImport("ws2_32.dll", SetLastError = true)]
+        public static extern int send(IntPtr s, byte[] buf, int len, int flags);
 
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int l_write_errno(uint fd, byte[] buf, uint count);
+        [DllImport("ws2_32.dll", SetLastError = true)]
+        public static extern int recv(IntPtr s, byte[] buf, int len, int flags);
 
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int l_read(uint fd, byte[] buf, uint count);
-
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int l_socket(int domain, int type, int protocol);
-
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int l_connect(int sockfd, IntPtr addr, uint addrlen);
-
-        [DllImport(@"MPRISBee\linux_syscalls.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        public static extern int l_connect_path(int sockfd, [MarshalAs(UnmanagedType.LPStr)] string path);
+        [DllImport("ws2_32.dll", SetLastError = true)]
+        public static extern int closesocket(IntPtr s);
     }
 
     public class Socket
@@ -69,30 +73,26 @@ namespace LinuxSys
         }
 
         private SockAddrUn socketAddress;
-        public uint sockAddrSize;
-        private int fileDescriptor;
+        private IntPtr fileDescriptor;
         private string path;
+        private readonly Logger logger;
 
         private readonly Queue<byte> readLeftoverBuffer;
 
-        public Socket(string path)
+        public Socket(Logger logger, string path)
         {
-            try
-            {
-                Console.WriteLine($"MPRISBee D: Socket constructor start");
-                CreateUnixSocketAddress(path);
-                Console.WriteLine($"MPRISBee D: Socket constructor passed CreateUnixSocketAddress");
-                this.path = path;
-                OpenUnixSocket();
-                Console.WriteLine($"MPRISBee D: Socket constructor passed OpenUnixSocket");
-                ConnectUnixSocket();
-                Console.WriteLine($"MPRISBee D: Socket constructor passed ConnectUnixSocket");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"MPRISBee E: Socket object instance failed IN {ex}");
-            }
+            this.logger = logger;
 
+            InitializeWinsock();
+
+            Console.WriteLine($"MPRISBee D: Socket constructor start");
+            CreateUnixSocketAddress(path);
+            Console.WriteLine($"MPRISBee D: Socket constructor passed CreateUnixSocketAddress");
+            this.path = path;
+            OpenUnixSocket();
+            Console.WriteLine($"MPRISBee D: Socket constructor passed OpenUnixSocket");
+            ConnectUnixSocket();
+            Console.WriteLine($"MPRISBee D: Socket constructor passed ConnectUnixSocket");
 
             readLeftoverBuffer = new Queue<byte>();
             Console.WriteLine($"MPRISBee D: Socket constructor passed");
@@ -100,13 +100,16 @@ namespace LinuxSys
         ~Socket()
         {
             CloseUnixSocket(fileDescriptor);
+            ShutdownWinsock();
         }
 
         private void CreateUnixSocketAddress(string path)
         {
-            socketAddress = new SockAddrUn();
-            socketAddress.sunFamily = (ushort)AF_UNIX;
-            socketAddress.sunPath = new byte[108];
+            socketAddress = new SockAddrUn
+            {
+                sunFamily = AF_UNIX,
+                sunPath = new byte[108]
+            };
 
             byte[] pathBytes = Encoding.UTF8.GetBytes(path);
             if (pathBytes.Length >= 108)
@@ -114,32 +117,34 @@ namespace LinuxSys
 
             Array.Copy(pathBytes, socketAddress.sunPath, pathBytes.Length);
             socketAddress.sunPath[pathBytes.Length] = 0;
-
-            sockAddrSize = 2 + (uint)pathBytes.Length + 1; // ushort + string + \0
         }
 
         private void OpenUnixSocket()
         {
-            fileDescriptor = Syscalls.l_socket(AF_UNIX, SOCK_STREAM, 0);
-            if (fileDescriptor < 0)
+            fileDescriptor = Syscalls.socket(AF_UNIX, SOCK_STREAM, 0);
+            if (fileDescriptor == (IntPtr)(-1))
             {
-                throw new SystemException("Cannot open a new socket");
+                var error = Marshal.GetLastWin32Error();
+                throw new SystemException($"Cannot open a new socket: {error}");
             }
         }
 
         private void ConnectUnixSocket()
         {
-            IntPtr addrPtr = Marshal.AllocHGlobal(110);
+            var size = Marshal.SizeOf<SockAddrUn>();
+            var addrPtr = Marshal.AllocHGlobal(size);
             try
             {
+                var rawAddress = new byte[size];
                 Marshal.StructureToPtr(socketAddress, addrPtr, false);
-                Console.WriteLine($"MPRISBee D: ConnectUnixSocket fd: {fileDescriptor}, addPtr: {addrPtr}, size: {sockAddrSize}");
-                var res = Syscalls.l_connect(fileDescriptor, addrPtr, sockAddrSize);
+                Marshal.Copy(addrPtr, rawAddress, 0, size);
+
+                Console.WriteLine($"MPRISBee D: ConnectUnixSocket fd: {fileDescriptor}, addPtr: {rawAddress}, size: {rawAddress.Length}");
+                var res = Syscalls.connect(fileDescriptor, rawAddress, rawAddress.Length);
                 if (res < 0)
                 {
-                    int errno = -res;
-                    Console.WriteLine($"MPRISBee E: Errno: {errno}");
-                    throw new IOException("MPRISBee E: Cannot connect to a socket");
+                    var error = Marshal.GetLastWin32Error();
+                    throw new IOException($"MPRISBee E: Cannot connect to a socket: {error}");
                 }
             }
             finally
@@ -148,9 +153,9 @@ namespace LinuxSys
             }
         }
 
-        private void CloseUnixSocket(int fd)
+        private void CloseUnixSocket(IntPtr fd)
         {
-            if (Syscalls.l_close(fd) < 0)
+            if (Syscalls.closesocket(fd) < 0)
             {
                 throw new SystemException("Cannot close this socket");
             }
@@ -158,30 +163,17 @@ namespace LinuxSys
 
         public void WriteStringNLTerminated(string text)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(text + '\n');
-            int totalWritten = 0;
-
-            while (totalWritten < bytes.Length)
+            if (!text.EndsWith("\n"))
             {
-                int remaining = bytes.Length - totalWritten;
-                
-                byte[] slice = new byte[remaining];
-                Buffer.BlockCopy(bytes, totalWritten, slice, 0, remaining);
+                text += "\n";
+            }
 
-                int written = Syscalls.l_write_errno(
-                    (uint)fileDescriptor,
-                    slice,
-                    (uint)remaining
-                );
-
-                if (written < 0)
-                {
-                    int errno = -written;
-                    Console.WriteLine($"MPRISBee E: Errno: {errno}");
-                    throw new IOException($"Write failed. Written: {totalWritten}");
-                }
-
-                totalWritten += written;
+            var bytes = Encoding.UTF8.GetBytes(text);
+            var written = Syscalls.send(fileDescriptor, bytes, bytes.Length, 0);
+            if (written < 0)
+            {
+                var error = Marshal.GetLastWin32Error();
+                throw new IOException($"Write failed: {error}");
             }
         }
 
@@ -208,7 +200,7 @@ namespace LinuxSys
 
                 // Read from the socket
                 byte[] chunk = new byte[chunkSize];
-                int bytesRead = Syscalls.l_read((uint)fileDescriptor, chunk, (uint)chunkSize);
+                int bytesRead = Syscalls.recv(fileDescriptor, chunk, chunkSize, 0);
 
                 if (bytesRead < 0)
                 {
@@ -218,7 +210,6 @@ namespace LinuxSys
                 if (bytesRead == 0)
                 {
                     // Possibly temporary lack of data — wait and retry
-
                     if (stopwatch.ElapsedMilliseconds < timeoutMillis)
                     {
                         Thread.Sleep(10);
@@ -246,6 +237,38 @@ namespace LinuxSys
             }
 
             return Encoding.UTF8.GetString(result.ToArray());
+        }
+
+        public static void InitializeWinsock()
+        {
+            // Request version 2.2
+            short versionRequested = 0x0202;
+
+            Syscalls.WSAData data = new Syscalls.WSAData();
+            IntPtr dataPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Syscalls.WSAData)));
+
+            try
+            {
+                Marshal.StructureToPtr(data, dataPtr, false);
+                int result = Syscalls.WSAStartup(versionRequested, dataPtr);
+
+                if (result != 0)
+                {
+                    throw new Exception($"Oh no! WSAStartup failed with error: {result}");
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(dataPtr);
+            }
+        }
+
+        /// <summary>
+        /// Gracefully shuts down Winsock.
+        /// </summary>
+        public static void ShutdownWinsock()
+        {
+            Syscalls.WSACleanup();
         }
     }
 }
