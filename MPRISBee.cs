@@ -1,5 +1,4 @@
-﻿using LinuxSys;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
@@ -11,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using MPrisBee;
 using static MusicBeePlugin.Plugin;
 
 namespace MusicBeePlugin
@@ -61,7 +61,7 @@ namespace MusicBeePlugin
                     return LoopStatus.Track;
                 case RepeatMode.None:
                 default:
-                    return LoopStatus.None; 
+                    return LoopStatus.None;
             }
         }
 
@@ -298,10 +298,10 @@ namespace MusicBeePlugin
         private PluginInfo about = new PluginInfo();
 
         private CancellationTokenSource listener_cts = new CancellationTokenSource();
+        private Logger logger;
 
-        Socket wineOut;
-
-        bool suspended = false;
+        private bool suspended;
+        private UnixSocket wineOut;
 
         public Plugin()
         {
@@ -347,6 +347,11 @@ namespace MusicBeePlugin
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = (ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents);
             about.ConfigurationPanelHeight = 0;   // height in pixels that musicbee should reserve in a panel for config settings. When set, a handle to an empty panel will be passed to the Configure function
+
+            var logDirectory = Path.Combine(mbApiInterface.Setting_GetPersistentStoragePath(), "MPrisBee");
+            Directory.CreateDirectory(logDirectory);
+            logger = new Logger(Path.Combine(logDirectory, "mb_MPrisBee.log"));
+
             return about;
         }
 
@@ -370,7 +375,7 @@ namespace MusicBeePlugin
             }
             return false;
         }
-       
+
         // called by MusicBee when the user clicks Apply or Save in the MusicBee Preferences screen.
         // its up to you to figure out whether anything has changed and needs updating
         public void SaveSettings()
@@ -396,10 +401,10 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                StopListening();
-                Console.WriteLine($"MPRISBee E: {ex}");
+                logger.Error("Error during shutdown", ex);
             }
 
+            logger.Close();
             StopListening();
         }
 
@@ -421,23 +426,24 @@ namespace MusicBeePlugin
             switch (type)
             {
                 case NotificationType.PluginStartup:
-                    {
-                        Console.WriteLine($"MPRISBee D: Plugin startup");
+                {
+                        logger.Info("Plugin startup");
 
-                        uint uid = Syscalls.l_getuid();
+                        var uid = 1000;
 
                         try
                         {
-                            string path = "/tmp/mprisbee" + Convert.ToString(uid) + "/wine.sock";
-                            Console.WriteLine($"MPRISBee D: Path: {path}");
-                            wineOut = new Socket(path);
+                            var path = $"/tmp/mprisbee{uid}/wine.sock";
+                            logger.Info($"Socket path: {path}");
+                            wineOut = new UnixSocket(logger, path);
 
                             StartListening();
                         }
                         catch (Exception ex)
                         {
                             suspended = true;
-                            Console.WriteLine($"MPRISBee E: {ex}");
+                            logger.Error("Failed to create socket. Aborting startup", ex);
+                            return;
                         }
 
                         SendPlayState();
@@ -451,7 +457,7 @@ namespace MusicBeePlugin
                             SendMetadataChange();
                         }
 
-                        Console.WriteLine($"MPRISBee D: Plugin startuped");
+                        logger.Info("Startup completed");
                     }
                     break;
 
@@ -544,7 +550,7 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"MPRISBee E: {ex}");
+                logger.Error("Failed to send play state", ex);
             }
         }
 
@@ -613,7 +619,7 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"MPRISBee E: {ex}");
+                logger.Error("Failed to write metadata to socket", ex);
             }
 
             Task.Run(() => WaitForArtUpdate(TrackId));
@@ -659,7 +665,7 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"MPRISBee E: {ex}");
+                logger.Error("Failed to write artwork update to socket", ex);
             }
         }
 
@@ -678,7 +684,7 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"MPRISBee E: {ex}");
+                logger.Error("Failed to write position update to socket", ex);
             }
         }
 
@@ -697,7 +703,7 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"MPRISBee E: {ex}");
+                logger.Error("Failed to write shuffle state to socket", ex);
             }
         }
 
@@ -716,7 +722,7 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"MPRISBee E: {ex}");
+                logger.Error("Failed to write loop state to socket", ex);
             }
         }
 
@@ -735,7 +741,7 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"MPRISBee E: {ex}");
+                logger.Error("Failed to write volume change to socket", ex);
             }
         }
 
@@ -786,14 +792,14 @@ namespace MusicBeePlugin
                         }
                         catch (JsonException ex)
                         {
-                            Console.WriteLine("Failed to parse JSON: " + ex.Message);
+                            logger.Error("Failed to parse JSON", ex);
                         }
                     }
                 }
             }
             catch (IOException ex)
             {
-                Console.WriteLine("Socket I/O failed: " + ex.Message);
+                logger.Error("Socket I/O failed", ex);
             }
         }
 
