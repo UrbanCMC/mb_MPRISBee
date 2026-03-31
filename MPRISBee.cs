@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using LinuxSys;
+using MPrisBee;
 using static MusicBeePlugin.Plugin;
 
 namespace MusicBeePlugin
@@ -300,9 +300,8 @@ namespace MusicBeePlugin
         private CancellationTokenSource listener_cts = new CancellationTokenSource();
         private Logger logger;
 
-        Socket wineOut;
-
-        bool suspended = false;
+        private bool suspended;
+        private UnixSocket wineOut;
 
         public Plugin()
         {
@@ -402,7 +401,6 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                StopListening();
                 logger.Error("Error during shutdown", ex);
             }
 
@@ -437,14 +435,15 @@ namespace MusicBeePlugin
                         {
                             var path = $"/tmp/mprisbee{uid}/wine.sock";
                             logger.Info($"Socket path: {path}");
-                            wineOut = new Socket(logger, path);
+                            wineOut = new UnixSocket(logger, path);
 
                             StartListening();
                         }
                         catch (Exception ex)
                         {
                             suspended = true;
-                            logger.Error("Failed to create socket", ex);
+                            logger.Error("Failed to create socket. Aborting startup", ex);
+                            return;
                         }
 
                         SendPlayState();

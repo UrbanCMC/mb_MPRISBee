@@ -119,7 +119,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Logger.cs" />
-    <Compile Include="Syscalls.cs" />
+    <Compile Include="UnixSocket.cs" />
+    <Compile Include="WinsockInterop.cs" />
     <Compile Include="MusicBeeInterface.cs" />
     <Compile Include="MPRISBee.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
