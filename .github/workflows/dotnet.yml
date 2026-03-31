@@ -18,26 +18,9 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW32
-          update: true
-          install: >
-            mingw-w64-i686-gcc
-            mingw-w64-i686-crt
-            mingw-w64-i686-headers
-            mingw-w64-i686-binutils
-
       - name: Restore NuGet packages
         run: |
           nuget restore MPRISBee.sln
-          
-      - name: Compile C file using MSVC
-        shell: msys2 {0}
-        run: |
-          mkdir -p bin/Release/MPRISBee
-          i686-w64-mingw32-gcc -masm=intel -shared -mconsole -Wall -Wextra -O2 -o bin/Release/MPRISBee/linux_syscalls.dll linux_syscalls.c linux_syscalls.def
 
       - name: Build the solution
         run: |
@@ -48,5 +31,4 @@ jobs:
         with:           
           name: mb_MPRISBee
           path: |
-            bin/Release/*.dll
             bin/Release/MPRISBee/*.dll
