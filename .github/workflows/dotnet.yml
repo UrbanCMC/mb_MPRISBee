@@ -15,21 +15,18 @@ jobs:
         run: |
           choco install netfx-4.8 -y
 
-      - name: Set up MSBuild
-        uses: microsoft/setup-msbuild@v3
-
       - name: Restore NuGet packages
         run: |
           nuget restore MPRISBee.sln
 
       - name: Build the solution
         run: |
-          msbuild MPRISBee.sln /p:Configuration=Release
-          
+          dotnet build MPRISBee.sln -c Release
+
       - name: Upload compiled files
         uses: actions/upload-artifact@v7.0.0
-        with:           
+        with:
           name: mb_MPRISBee
           path: |
-            bin/Release/*.dll
-            bin/Release/MPRISBee/*.dll
+            bin/Release/net48/*.dll
+            bin/Release/net48/MPRISBee/*.dll
