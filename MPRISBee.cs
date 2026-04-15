@@ -74,7 +74,7 @@ namespace MusicBeePlugin
             about.Type = PluginType.General;
             about.VersionMajor = 1; // your plugin version
             about.VersionMinor = 0;
-            about.Revision = 0;
+            about.Revision = 1;
             about.MinInterfaceVersion = MinInterfaceVersion;
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = (ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents);
@@ -277,24 +277,82 @@ namespace MusicBeePlugin
             var metadata = new Dictionary<string, VariantValue>
             {
                 ["mpris:trackid"] = trackId,
-                ["xesam:title"] = title,
                 ["mpris:length"] = length,
-                ["xesam:artist"] = artist,
-                ["xesam:album"] = album,
-                ["xesam:albumArtist"] = albumArtist,
                 ["xesam:url"] = GetUnixFileUrl(fileUrl),
-
-                ["xesam:discNumber"] = discNo,
-                ["xesam:trackNumber"] = trackNo,
-                ["xesam:composer"] =  composer,
-                ["xesam:lyricist"] = lyricist,
-                ["xesam:genre"] = genres,
-                ["xesam:audioBPM"] = beatsPerMin,
-                ["xesam:contentCreated"] = year,
-                ["xesam:userRating"] = rating,
-                ["xesam:comment"] = comment
             };
 
+            // Ensure important metadata is set
+            if (string.IsNullOrEmpty(title))
+            {
+                title = "Unknown Title";
+            }
+
+            if (string.IsNullOrEmpty(artist))
+            {
+                artist = "Unknown Artist";
+            }
+
+            if (string.IsNullOrEmpty(album))
+            {
+                album = "Unknown Album";
+            }
+
+            metadata["xesam:title"] = title;
+            metadata["xesam:artist"] = new Array<string>(artist.Split(';'));
+            metadata["xesam:album"] = album;
+
+            // Add optional metadata
+            if (!string.IsNullOrEmpty(albumArtist))
+            {
+                metadata["xesam:albumArtist"] = new Array<string>(albumArtist.Split(';'));
+            }
+
+            if (int.TryParse(trackNo, out var trackNumber))
+            {
+                metadata["xesam:trackNumber"] = trackNumber;
+            }
+
+            if (int.TryParse(discNo, out var discNumber))
+            {
+                metadata["xesam:discNumber"] = discNumber;
+            }
+
+            if (!string.IsNullOrEmpty(composer))
+            {
+                metadata["xesam:composer"] = new Array<string>(composer.Split(';'));
+            }
+
+            if (!string.IsNullOrEmpty(lyricist))
+            {
+                metadata["xesam:lyricist"] = new Array<string>(lyricist.Split(';'));
+            }
+
+            if (!string.IsNullOrEmpty(genres))
+            {
+                metadata["xesam:genre"] = new Array<string>(genres.Split(';'));
+            }
+
+            if (int.TryParse(beatsPerMin, out var audioBpm))
+            {
+                metadata["xesam:audioBPM"] = audioBpm;
+            }
+
+            if (!string.IsNullOrEmpty(year))
+            {
+                metadata["xesam:contentCreated"] = year;
+            }
+
+            if (float.TryParse(rating, out var userRating))
+            {
+                metadata["xesam:userRating"] = userRating;
+            }
+
+            if (!string.IsNullOrEmpty(comment))
+            {
+                metadata["xesam:comment"] = new Array<string>(comment.Split(';'));
+            }
+
+            // Send metadata
             try
             {
                 dbusPlayer.Metadata = metadata;
