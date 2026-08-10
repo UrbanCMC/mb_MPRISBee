@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Tmds.DBus.Protocol;
@@ -11,23 +12,25 @@ public class WineConnectionOptions(string address) : DBusConnectionOptions(addre
 
     protected override ValueTask<SetupResult> SetupAsync(CancellationToken cancellationToken)
     {
-        var dbusSessionAddress = Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS");
-        if (dbusSessionAddress == null)
+        foreach (var line in File.ReadLines("/proc/self/status"))
         {
-            throw new Exception("DBUS_SESSION_BUS_ADDRESS environment variable not set");
+            if (!line.StartsWith("Uid:", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            var parts = line.Split(['\t', ' '], StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2 && uint.TryParse(parts[1], out var userId))
+            {
+                return new ValueTask<SetupResult>(new SetupResult(address)
+                {
+                    // This does not work in wine/windows, will try to DLLImport libc
+                    SupportsFdPassing = false,
+                    UserId = userId.ToString(),
+                    MachineId = "N"
+                });
+            }
+            break;
         }
-
-        if (!int.TryParse(dbusSessionAddress.Replace("unix:path=/run/user/", string.Empty).Replace("/bus", string.Empty), out var userId))
-        {
-            throw new Exception("Failed to get UserId from DBUS_SESSION_BUS_ADDRESS");
-        }
-
-        return new ValueTask<SetupResult>(new SetupResult(address)
-        {
-            // This does not work in wine/windows, will try to DLLImport libc
-            SupportsFdPassing = false,
-            UserId = userId.ToString(),
-            MachineId = "N"
-        });
+        throw new Exception("Failed to get Linux UserId from /proc/self/status");
     }
 }
