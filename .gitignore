@@ -1,6 +1,6 @@
 [Oo]bj/
 [Bb]in/
 .vs/
+.idea/
 packages/
-ErrorLog.dat
-guide.txt
+*.DotSettings.user
