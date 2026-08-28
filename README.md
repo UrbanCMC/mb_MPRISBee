@@ -8,5 +8,12 @@ A MusicBee plugin that exposes the player status via a DBUS MPRIS integration. T
   * As of writing (2026-03-31), AF_UNIX socket communication is only supported on `wine-staging` 10.2 or later.
 * Errors are now also logged to the WINEPREFIX's %APPDATA%\MusicBee\MPRISBee\mb_MPRISBee.log
 
+### A Note for Bottles/Flatpak users
+If you're running MusicBee in a Bottles environment, you're most likely running it through Flatpak.  
+In this case, you need to allow Bottles to register the session bus name that MPRISBee will be using:
+```sh
+flatpak override --user --own-name=org.mpris.MediaPlayer2.MusicBee com.usebottles.bottles
+```
+
 ### Credits
 The code for putting assemblies into a subfolder is from [DiscordBee](https://github.com/sll552/DiscordBee/blob/master/DiscordBee.cs)
