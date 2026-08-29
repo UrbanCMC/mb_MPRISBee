@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Tmds.DBus.Protocol;
-using Tmds.DBus.SourceGenerator;
 
 namespace MusicBeePlugin.DBus;
 
@@ -13,9 +12,7 @@ public class DBusMediaPlayer
 
     private readonly Plugin.MusicBeeApiInterface mbApiInterface;
     private readonly DBusConnection connection;
-    private readonly PathHandler pathHandler;
-    private readonly MediaPlayerHandler mediaPlayerHandler;
-    private readonly MediaPlayerPlayerHandler playerHandler;
+    private readonly DBusMediaPlayerHandler handler;
 
     private bool emitSignals;
 
@@ -23,30 +20,7 @@ public class DBusMediaPlayer
     {
         this.connection = connection;
         this.mbApiInterface = mbApiInterface;
-        pathHandler = new PathHandler(ObjectPath);
-        mediaPlayerHandler = new MediaPlayerHandler(this) { PathHandler = pathHandler };
-        playerHandler = new MediaPlayerPlayerHandler(this) { PathHandler = pathHandler };
-        pathHandler.Add(mediaPlayerHandler);
-        pathHandler.Add(playerHandler);
-
-        Identity = "MusicBee";
-        DesktopEntry = "MusicBee";
-        CanQuit = false;
-        CanRaise = false;
-        CanSetFullscreen = false;
-        HasTrackList = false;
-        SupportedUriSchemes = ["file"];
-        SupportedMimeTypes = [""];
-        PlaybackStatus = "Stopped";
-        MinimumRate = 1.0;
-        MaximumRate = 1.0;
-        CanGoNext = true;
-        CanGoPrevious = true;
-        CanPlay = true;
-        CanPause = true;
-        CanSeek = true;
-        CanControl = true;
-        Metadata = new Dictionary<string, VariantValue>();
+        handler = new DBusMediaPlayerHandler(connection, this);
     }
 
     // The SourceGenerator generates properties which are abstract when writable and non-abstract when not writable.
@@ -62,7 +36,7 @@ public class DBusMediaPlayer
         set
         {
             fullscreen = value;
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "Fullscreen", value);
+            EmitPropertyChanged(MediaPlayer2Property.Fullscreen);
         }
     }
 
@@ -74,7 +48,7 @@ public class DBusMediaPlayer
         set
         {
             loopStatus = value ?? throw new ArgumentNullException(nameof(value));
-            EmitPropertyChanged(playerHandler.InterfaceName, "LoopStatus", value);
+            EmitPropertyChanged(PlayerProperty.LoopStatus);
         }
     }
 
@@ -86,7 +60,7 @@ public class DBusMediaPlayer
         set
         {
             rate = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "Rate", value);
+            EmitPropertyChanged(PlayerProperty.Rate);
         }
     }
 
@@ -98,7 +72,7 @@ public class DBusMediaPlayer
         set
         {
             shuffle = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "Shuffle", value);
+            EmitPropertyChanged(PlayerProperty.Shuffle);
         }
     }
 
@@ -110,200 +84,64 @@ public class DBusMediaPlayer
         set
         {
             volume = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "Volume", value);
+            EmitPropertyChanged(PlayerProperty.Volume);
         }
     }
 
-    private string Identity
-    {
-        get => mediaPlayerHandler.Identity ?? "";
-        set
-        {
-            mediaPlayerHandler.Identity = value ?? throw new ArgumentNullException(nameof(value));
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "Identity", value);
-        }
-    }
-
-    private bool CanQuit
-    {
-        get => mediaPlayerHandler.CanQuit;
-        set
-        {
-            mediaPlayerHandler.CanQuit = value;
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "CanQuit", value);
-        }
-    }
-
-    private bool CanRaise
-    {
-        get => mediaPlayerHandler.CanRaise;
-        set
-        {
-            mediaPlayerHandler.CanRaise = value;
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "CanRaise", value);
-        }
-    }
-
-    private bool HasTrackList
-    {
-        get => mediaPlayerHandler.HasTrackList;
-        set
-        {
-            mediaPlayerHandler.HasTrackList = value;
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "HasTrackList", value);
-        }
-    }
-
-    private string[] SupportedUriSchemes
-    {
-        get => mediaPlayerHandler.SupportedUriSchemes ?? [];
-        set
-        {
-            ThrowIfAnyElementIsNull(value ?? throw new ArgumentNullException(nameof(value)));
-            mediaPlayerHandler.SupportedUriSchemes = value;
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "SupportedUriSchemes", VariantValue.Array(value));
-        }
-    }
-
-    private string[] SupportedMimeTypes
-    {
-        get => mediaPlayerHandler.SupportedMimeTypes ?? [];
-        set
-        {
-            ThrowIfAnyElementIsNull(value ?? throw new ArgumentNullException(nameof(value)));
-            mediaPlayerHandler.SupportedMimeTypes = value;
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "SupportedMimeTypes", VariantValue.Array(value));
-        }
-    }
-
-    private bool CanSetFullscreen
-    {
-        get => mediaPlayerHandler.CanSetFullscreen;
-        set
-        {
-            mediaPlayerHandler.CanSetFullscreen = value;
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "CanSetFullscreen", value);
-        }
-    }
-
-    private string DesktopEntry
-    {
-        get => mediaPlayerHandler.DesktopEntry ?? "";
-        set
-        {
-            mediaPlayerHandler.DesktopEntry = value ?? throw new ArgumentNullException(nameof(value));
-            EmitPropertyChanged(mediaPlayerHandler.InterfaceName, "DesktopEntry", value);
-        }
-    }
+    private string playbackStatus = "Stopped";
 
     public string PlaybackStatus
     {
-        get => playerHandler.PlaybackStatus ?? "";
+        get => playbackStatus;
         set
         {
-            playerHandler.PlaybackStatus = value ?? throw new ArgumentNullException(nameof(value));
-            EmitPropertyChanged(playerHandler.InterfaceName, "PlaybackStatus", value);
+            playbackStatus = value ?? throw new ArgumentNullException(nameof(value));
+            EmitPropertyChanged(PlayerProperty.PlaybackStatus);
         }
     }
 
-    private double MinimumRate
-    {
-        get => playerHandler.MinimumRate;
-        set
-        {
-            playerHandler.MinimumRate = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "MinimumRate", value);
-        }
-    }
-
-    private double MaximumRate
-    {
-        get => playerHandler.MaximumRate;
-        set
-        {
-            playerHandler.MaximumRate = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "MaximumRate", value);
-        }
-    }
+    private bool canGoNext;
 
     public bool CanGoNext
     {
-        get => playerHandler.CanGoNext;
+        get => canGoNext;
         set
         {
-            playerHandler.CanGoNext = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "CanGoNext", value);
+            canGoNext = value;
+            EmitPropertyChanged(PlayerProperty.CanGoNext);
         }
     }
+
+    private bool canGoPrevious;
 
     public bool CanGoPrevious
     {
-        get => playerHandler.CanGoPrevious;
+        get => canGoPrevious;
         set
         {
-            playerHandler.CanGoPrevious = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "CanGoPrevious", value);
-        }
-    }
-
-    private bool CanPlay
-    {
-        get => playerHandler.CanPlay;
-        set
-        {
-            playerHandler.CanPlay = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "CanPlay", value);
-        }
-    }
-
-    private bool CanPause
-    {
-        get => playerHandler.CanPause;
-        set
-        {
-            playerHandler.CanPause = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "CanPause", value);
-        }
-    }
-
-    private bool CanSeek
-    {
-        get => playerHandler.CanSeek;
-        set
-        {
-            playerHandler.CanSeek = value;
-            EmitPropertyChanged(playerHandler.InterfaceName, "CanSeek", value);
-        }
-    }
-
-    private bool CanControl
-    {
-        get => playerHandler.CanControl;
-        set
-        {
-            playerHandler.CanControl = value;
-            // note: no PropertiesChanged signal is emitted for CanControl.
+            canGoPrevious = value;
+            EmitPropertyChanged(PlayerProperty.CanGoPrevious);
         }
     }
 
     private long Position => mbApiInterface.Player_GetPosition() * 1000;
 
+    private Dictionary<string, VariantValue> metadata = new();
+
     public Dictionary<string, VariantValue> Metadata
     {
-        get => playerHandler.Metadata ?? throw new InvalidOperationException($"{nameof(Metadata)} should be initialized");
+        get => metadata;
         set
         {
-            playerHandler.Metadata = value ?? throw new ArgumentNullException(nameof(Metadata));
-            var dict = new Dict<string, VariantValue>(value);
-            EmitPropertyChanged(playerHandler.InterfaceName, "Metadata", dict);
+            metadata = value ?? throw new ArgumentNullException(nameof(Metadata));
+            EmitPropertyChanged(PlayerProperty.Metadata);
         }
     }
 
     public async Task AddToDBusAsync()
     {
-        connection.AddMethodHandler(pathHandler);
+        await handler.AddToDBusAsync();
         emitSignals = true;
-        await connection.RequestNameAsync(ServiceName);
     }
 
     private void Next()
@@ -342,10 +180,10 @@ public class DBusMediaPlayer
         }
     }
 
-    public void OnSeeked(int position)
-    {
-        playerHandler.OnSeeked(position);
-    }
+    // public void OnSeeked(int position)
+    // {
+    //     handler.OnSeeked(position);
+    // }
 
     private void Seek(long offset)
     {
@@ -396,142 +234,181 @@ public class DBusMediaPlayer
         mbApiInterface.Player_SetVolume((float)volume);
     }
 
-    private void EmitPropertyChanged(string interfaceName, string name, VariantValue value)
+    private void EmitPropertyChanged(PlayerProperty property)
     {
         if (!emitSignals)
         {
             return;
         }
 
-        var writer = connection.GetMessageWriter();
-        writer.WriteSignalHeader(null, ObjectPath, "org.freedesktop.DBus.Properties", "PropertiesChanged", "sa{sv}as");
-        writer.WriteString(interfaceName);
-        writer.WriteDictionary([new KeyValuePair<string, VariantValue>(name, value)]);
-        writer.WriteArray(Array.Empty<string>());
-        connection.TrySendMessage(writer.CreateMessage());
-        writer.Dispose();
+        connection.EmitPropertyChanged(ObjectPath, handler, property);
     }
 
-    private static void ThrowIfAnyElementIsNull(string[] value)
+    private void EmitPropertyChanged(MediaPlayer2Property property)
     {
-        if (Array.IndexOf(value, null) != -1)
+        if (!emitSignals)
         {
-            throw new ArgumentException("Array contains null elements.", nameof(value));
+            return;
         }
+
+        connection.EmitPropertyChanged(ObjectPath, handler, property);
     }
 
-    private sealed class MediaPlayerHandler(DBusMediaPlayer player) : OrgMprisMediaPlayer2Handler
+    private class DBusMediaPlayerHandler(DBusConnection connection, DBusMediaPlayer player)
+        : DBusHandler(connection, ObjectPath, false), IMediaPlayer2Handler, IMediaPlayer2Properties, IPlayerHandler, IPlayerProperties
     {
-        public override Connection Connection => player.connection.AsConnection();
+        // IMediaPlayer2Properties
+        public bool CanQuit => false;
+        public bool CanRaise => false;
+        public bool CanSetFullscreen => false;
+        public bool HasTrackList => false;
+        public string Identity => "MusicBee";
+        public string DesktopEntry => "MusicBee";
+        public string[] SupportedUriSchemes => ["file"];
+        public string[] SupportedMimeTypes => [""];
 
-        public override bool Fullscreen
+        public bool Fullscreen
         {
             get => player.Fullscreen;
             set => player.Fullscreen = value;
         }
 
-        protected override ValueTask OnRaiseAsync(Message request)
-        {
-            return default;
-        }
+        // IPlayerProperties
+        public bool CanControl => true;
+        public double MinimumRate => 1.0;
+        public double MaximumRate => 1.0;
 
-        protected override ValueTask OnQuitAsync(Message request)
-        {
-            return default;
-        }
-    }
+        public bool CanGoNext => player.CanGoNext;
 
-    private sealed class MediaPlayerPlayerHandler(DBusMediaPlayer player) : OrgMprisMediaPlayer2PlayerHandler
-    {
-        public override Connection Connection => player.connection.AsConnection();
+        public bool CanGoPrevious => player.CanGoPrevious;
 
-        public override string LoopStatus
+        public bool CanPause => true;
+
+        public bool CanPlay => true;
+
+        public bool CanSeek => true;
+
+        public string LoopStatus
         {
             get => player.LoopStatus;
             set => player.SetLoopStatus(value);
         }
 
-        public override long Position
+        public Dictionary<string, VariantValue> Metadata => player.Metadata;
+
+        public string PlaybackStatus => player.PlaybackStatus;
+
+        public long Position
         {
             get => player.Position;
-            set { /* Not actually supported by the spec */ }
+            set
+            {
+                /* Not actually supported by the spec */
+            }
         }
 
-        public override double Rate
+        public double Rate
         {
             get => player.Rate;
             set => player.Rate = value;
         }
 
-        public override bool Shuffle
+        public bool Shuffle
         {
             get => player.Shuffle;
             set => player.SetShuffle(value);
         }
 
-        public override double Volume
+        public double Volume
         {
             get => player.Volume;
             set => player.SetVolume(value);
         }
 
-        public void OnSeeked(int position)
+        public async Task AddToDBusAsync()
         {
-            EmitSeeked(position * 1000);
+            Connection.AddMethodHandler(this);
+            await Connection.RequestNameAsync(ServiceName);
         }
 
-        protected override ValueTask OnNextAsync(Message request)
+        // IMediaPlayer2Handler
+        ValueTask IMediaPlayer2Handler.RaiseAsync()
+        {
+            return default;
+        }
+
+        ValueTask IMediaPlayer2Handler.QuitAsync()
+        {
+            return default;
+        }
+
+        // IPlayerHandler
+        ValueTask IPlayerHandler.NextAsync()
         {
             player.Next();
             return default;
         }
 
-        protected override ValueTask OnPreviousAsync(Message request)
+        ValueTask IPlayerHandler.PreviousAsync()
         {
             player.Previous();
             return default;
         }
 
-        protected override ValueTask OnPauseAsync(Message request)
+        ValueTask IPlayerHandler.PauseAsync()
         {
             player.Pause();
             return default;
         }
 
-        protected override ValueTask OnPlayPauseAsync(Message request)
+        ValueTask IPlayerHandler.PlayPauseAsync()
         {
             player.PlayPause();
             return default;
         }
 
-        protected override ValueTask OnStopAsync(Message request)
+        ValueTask IPlayerHandler.StopAsync()
         {
             player.Stop();
             return default;
         }
 
-        protected override ValueTask OnPlayAsync(Message request)
+        ValueTask IPlayerHandler.PlayAsync()
         {
             player.Play();
+
             return default;
         }
 
-        protected override ValueTask OnSeekAsync(Message request, long offset)
+        ValueTask IPlayerHandler.SeekAsync(long offset)
         {
             player.Seek(offset);
             return default;
         }
 
-        protected override ValueTask OnSetPositionAsync(Message request, ObjectPath trackId, long position)
+        ValueTask IPlayerHandler.SetPositionAsync(ObjectPath trackId, long pos)
         {
-            player.SetPosition(trackId, position);
+            player.SetPosition(trackId, pos);
             return default;
         }
 
-        protected override ValueTask OnOpenUriAsync(Message request, string uri)
+        ValueTask IPlayerHandler.OpenUriAsync(string uri)
         {
             player.OpenUri(uri);
             return default;
         }
+
+        // Property methods
+        ValueTask IMediaPlayer2Handler.HandleGetAllPropertiesAsync(IMediaPlayer2Handler.GetAllPropertiesContext context) => context.Handle(this);
+
+        ValueTask IMediaPlayer2Handler.HandleGetPropertyAsync(IMediaPlayer2Handler.GetPropertyContext context) => context.Handle(this);
+
+        ValueTask IMediaPlayer2Handler.HandleSetPropertyAsync(IMediaPlayer2Handler.SetPropertyContext context) => context.Handle(this);
+
+        ValueTask IPlayerHandler.HandleGetAllPropertiesAsync(IPlayerHandler.GetAllPropertiesContext context) => context.Handle(this);
+
+        ValueTask IPlayerHandler.HandleGetPropertyAsync(IPlayerHandler.GetPropertyContext context) => context.Handle(this);
+
+        ValueTask IPlayerHandler.HandleSetPropertyAsync(IPlayerHandler.SetPropertyContext context) => context.Handle(this);
     }
 }

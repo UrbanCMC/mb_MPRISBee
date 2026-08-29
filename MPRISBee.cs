@@ -69,7 +69,7 @@ namespace MusicBeePlugin
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "MPRISBee";
             about.Description = "Sends MusicBee's status outside wine";
-            about.Author = "Kyletsit";
+            about.Author = "Kyletsit; UrbanCMC";
             about.TargetApplication = ""; //  the name of a Plugin Storage device or panel header for a dockable panel
             about.Type = PluginType.General;
             about.VersionMajor = 1; // your plugin version

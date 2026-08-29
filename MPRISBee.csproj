@@ -14,16 +14,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.92.0" />
-    <PackageReference Include="Tmds.DBus.SourceGenerator" Version="0.0.22">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="Tmds.DBus.Generator" Version="0.95.0" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="dbus-xml\org.mpris.MediaPlayer2.Player.xml" DBusGeneratorMode="Handler" />
-    <AdditionalFiles Include="dbus-xml\org.mpris.MediaPlayer2.xml" DBusGeneratorMode="Handler" />
+    <AdditionalFiles Include="dbus-xml\org.mpris.MediaPlayer2.Player.xml" Namespace="MusicBeePlugin.DBus" DBusGeneratorMode="Handler" />
+    <AdditionalFiles Include="dbus-xml\org.mpris.MediaPlayer2.xml" Namespace="MusicBeePlugin.DBus" DBusGeneratorMode="Handler" />
   </ItemGroup>
 
   <Target Name="MoveDependentDlls" AfterTargets="Build">

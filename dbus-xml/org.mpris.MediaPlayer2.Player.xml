@@ -425,8 +425,7 @@
       </tp:docstring>
     </property>
 
-    <!-- Note: Technically access should be "read", but the generated code would not allow us to access the property correctly! -->
-    <property name="Position" type="x" tp:type="Time_In_Us" tp:name-for-bindings="Position" access="readwrite">
+    <property name="Position" type="x" tp:type="Time_In_Us" tp:name-for-bindings="Position" access="read">
         <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>
         <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
           <p>
