@@ -35,7 +35,7 @@ namespace MusicBeePlugin
             }
 
             // from https://github.com/sll552/DiscordBee/blob/master/DiscordBee.cs
-            AppDomain.CurrentDomain.AssemblyResolve += (object _, ResolveEventArgs args) =>
+            AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
             {
                 var assemblyFile = args.Name.Contains(",")
                     ? args.Name.Substring(0, args.Name.IndexOf(','))
@@ -330,6 +330,15 @@ namespace MusicBeePlugin
             // Send metadata
             try
             {
+                // Check if artwork is already available, so we need to send metadata only once
+                var artworkUrl = mbApiInterface.NowPlaying_GetArtworkUrl();
+                if (!string.IsNullOrEmpty(artworkUrl))
+                {
+                    metadata["mpris:artUrl"] = WinePath.GetUnixFileUrl(artworkUrl);
+                    dbusPlayer.Metadata = metadata;
+                    return;
+                }
+
                 dbusPlayer.Metadata = metadata;
             }
             catch (Exception ex)
@@ -361,16 +370,15 @@ namespace MusicBeePlugin
             var tries = 1;
             while (string.IsNullOrWhiteSpace(artworkUrl))
             {
-                if (tries > 3)
+                await Task.Delay(Math.Min(10000, 100 * tries++));
+
+                // Break if the track we are waiting for is no longer playing
+                if (!dbusPlayer.Metadata.TryGetValue("mpris:trackid", out var currentTrackId) || currentTrackId != trackId)
                 {
                     return;
                 }
 
-                await Task.Delay(50 * tries);
                 artworkUrl = mbApiInterface.NowPlaying_GetArtworkUrl();
-                Console.WriteLine($"MPRISBee D: artwork url: {artworkUrl}");
-
-                tries += 1;
             }
 
             SendArtUpdate(trackId, artworkUrl);
@@ -378,7 +386,8 @@ namespace MusicBeePlugin
 
         private void SendArtUpdate(string trackId, string artworkUrl)
         {
-            if (!dbusPlayer.Metadata.ContainsKey("mpris:trackid") || dbusPlayer.Metadata["mpris:trackid"] != trackId)
+            // Break if the track we are waiting for is no longer playing
+            if (!dbusPlayer.Metadata.TryGetValue("mpris:trackid", out var currentTrackId) || currentTrackId != trackId)
             {
                 return;
             }
