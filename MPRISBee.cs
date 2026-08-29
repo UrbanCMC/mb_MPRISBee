@@ -121,7 +121,7 @@ namespace MusicBeePlugin
             {
                 case NotificationType.PluginStartup:
                 {
-                    logger.Info("Plugin startup");
+                    logger.Info($"MPRISBee version {about.VersionMajor}.{about.VersionMinor}.{about.Revision} starting");
 
                     try
                     {

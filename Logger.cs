@@ -14,26 +14,8 @@ namespace MusicBeePlugin
         {
             fileInfo = new FileInfo(path);
             writer = null;
-        }
 
-        public static void ClearLog(string path)
-        {
-            if (!File.Exists(path))
-            {
-                return;
-            }
-
-            string content;
-            using (var reader = File.OpenText(path))
-            {
-                content = reader.ReadToEnd();
-            }
-
-            var matches = Regex.Matches(content, @"version.*?started!");
-            if (matches.Count >= 10)
-            {
-                File.WriteAllText(path, "");
-            }
+            ClearLog();
         }
 
         public void Close()
@@ -50,11 +32,6 @@ namespace MusicBeePlugin
             catch (ObjectDisposedException)
             {
             }
-        }
-
-        public FileInfo GetFileInfo()
-        {
-            return fileInfo;
         }
 
         public void Success(string message)
@@ -85,6 +62,27 @@ namespace MusicBeePlugin
         public void Error(string message, Exception ex)
         {
             Write("error", $"{message}{Environment.NewLine}{ex}");
+        }
+
+        private void ClearLog()
+        {
+            var path = fileInfo.FullName;
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            string content;
+            using (var reader = File.OpenText(path))
+            {
+                content = reader.ReadToEnd();
+            }
+
+            var matches = Regex.Matches(content, @"version.*?starting");
+            if (matches.Count >= 10)
+            {
+                File.WriteAllText(path, "");
+            }
         }
 
         private void Write(string type, string message)
