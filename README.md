@@ -15,5 +15,9 @@ In this case, you need to allow Bottles to register the session bus name that MP
 flatpak override --user --own-name=org.mpris.MediaPlayer2.MusicBee com.usebottles.bottles
 ```
 
+Additionally, because of how Flatpak sandboxes the file system, the URL for the currently playing track will
+follow this schema in your metadata: `file:///run/flatpak/doc/UjyaZyN8GVjqi24Xz8txnA/[...]`  
+This is unlikely to be an issue for most people, but if it is for you, I'd suggest not using Flatpak.
+
 ### Credits
 The code for putting assemblies into a subfolder is from [DiscordBee](https://github.com/sll552/DiscordBee/blob/master/DiscordBee.cs)

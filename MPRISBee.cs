@@ -8,13 +8,13 @@ using System.Text;
 using System.Threading.Tasks;
 using MusicBeePlugin.DBus;
 using MusicBeePlugin.DBus.Enums;
+using MusicBeePlugin.IO;
 using Tmds.DBus.Protocol;
 
 namespace MusicBeePlugin
 {
     public partial class Plugin
     {
-        private readonly string winePrefix;
         private readonly PluginInfo about = new();
 
         private MusicBeeApiInterface mbApiInterface;
@@ -26,15 +26,10 @@ namespace MusicBeePlugin
 
         public Plugin()
         {
-            winePrefix = Environment.GetEnvironmentVariable("WINEPREFIX");
-            if (string.IsNullOrEmpty(winePrefix))
+            var winePrefix1 = Environment.GetEnvironmentVariable("WINEPREFIX");
+            if (string.IsNullOrEmpty(winePrefix1))
             {
                 throw new PlatformNotSupportedException("WINEPREFIX not set. MusicBee appears to not be running in wine.");
-            }
-
-            if (!winePrefix.EndsWith("/"))
-            {
-                winePrefix += "/";
             }
 
             // from https://github.com/sll552/DiscordBee/blob/master/DiscordBee.cs
@@ -83,6 +78,7 @@ namespace MusicBeePlugin
             var logDirectory = Path.Combine(mbApiInterface.Setting_GetPersistentStoragePath(), "MPRISBee");
             Directory.CreateDirectory(logDirectory);
             logger = new Logger(Path.Combine(logDirectory, "mb_MPRISBee.log"));
+            WinePath.Init(logger);
 
             return about;
         }
@@ -255,7 +251,7 @@ namespace MusicBeePlugin
             {
                 ["mpris:trackid"] = trackId,
                 ["mpris:length"] = length,
-                ["xesam:url"] = GetUnixFileUrl(fileUrl),
+                ["xesam:url"] = WinePath.GetUnixFileUrl(fileUrl),
             };
 
             // Ensure important metadata is set
@@ -385,7 +381,7 @@ namespace MusicBeePlugin
                 return;
             }
 
-            var newMetadata = new Dictionary<string, VariantValue>(dbusPlayer.Metadata) { { "mpris:artUrl", GetUnixFileUrl(artworkUrl) } };
+            var newMetadata = new Dictionary<string, VariantValue>(dbusPlayer.Metadata) { { "mpris:artUrl", WinePath.GetUnixFileUrl(artworkUrl) } };
 
             try
             {
@@ -472,12 +468,6 @@ namespace MusicBeePlugin
         {
             dbusPlayer.CanGoNext = mbApiInterface.NowPlayingList_IsAnyFollowingTracks();
             dbusPlayer.CanGoPrevious = mbApiInterface.NowPlayingList_IsAnyPriorTracks();
-        }
-
-        private string GetUnixFileUrl(string fileUrl)
-        {
-            var unixUrl = fileUrl.Replace(@"\", "/").Replace("C:/", $"{winePrefix}drive_c/").Replace("Z:/", "/");
-            return $"file://{unixUrl}";
         }
     }
 }

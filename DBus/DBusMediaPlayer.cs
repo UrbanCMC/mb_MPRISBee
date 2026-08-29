@@ -200,11 +200,6 @@ public class DBusMediaPlayer
         OnSeeked(newPos);
     }
 
-    private void OpenUri(string uri)
-    {
-        Console.WriteLine($"OpenUri requested: {uri}");
-    }
-
     private void SetLoopStatus(string loopStatus)
     {
         Enum.TryParse<Enums.LoopStatus>(loopStatus, out var loopEnum);
@@ -390,7 +385,7 @@ public class DBusMediaPlayer
 
         ValueTask IPlayerHandler.OpenUriAsync(string uri)
         {
-            player.OpenUri(uri);
+            /* Unsupported function, MusicBee does not allow playing arbitrary files */
             return default;
         }
 
