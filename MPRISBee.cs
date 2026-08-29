@@ -159,6 +159,7 @@ namespace MusicBeePlugin
                 case NotificationType.PlayStateChanged:
                 {
                     SendPlayState();
+                    dbusPlayer.OnSeeked(mbApiInterface.Player_GetPosition());
                     break;
                 }
 

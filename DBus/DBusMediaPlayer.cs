@@ -180,21 +180,24 @@ public class DBusMediaPlayer
         }
     }
 
-    // public void OnSeeked(int position)
-    // {
-    //     handler.OnSeeked(position);
-    // }
+    public void OnSeeked(int position)
+    {
+        connection.EmitSeeked(ObjectPath, (long)position * 1000);
+    }
 
     private void Seek(long offset)
     {
         var currentPos = mbApiInterface.Player_GetPosition();
         var newPos = Math.Max(0, currentPos + (int)(offset / 1000));
         mbApiInterface.Player_SetPosition(newPos);
+        OnSeeked(newPos);
     }
 
     private void SetPosition(ObjectPath trackId, long position)
     {
-        mbApiInterface.Player_SetPosition((int)(position / 1000));
+        var newPos = (int)(position / 1000);
+        mbApiInterface.Player_SetPosition(newPos);
+        OnSeeked(newPos);
     }
 
     private void OpenUri(string uri)
@@ -298,14 +301,7 @@ public class DBusMediaPlayer
 
         public string PlaybackStatus => player.PlaybackStatus;
 
-        public long Position
-        {
-            get => player.Position;
-            set
-            {
-                /* Not actually supported by the spec */
-            }
-        }
+        public long Position => player.Position;
 
         public double Rate
         {
