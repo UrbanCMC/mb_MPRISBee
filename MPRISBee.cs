@@ -15,6 +15,8 @@ namespace MusicBeePlugin
 {
     public partial class Plugin
     {
+        private static readonly string[] DefaultTagDelimiters = ["; "];
+
         private readonly PluginInfo about = new();
 
         private MusicBeeApiInterface mbApiInterface;
@@ -271,13 +273,13 @@ namespace MusicBeePlugin
             }
 
             metadata["xesam:title"] = title;
-            metadata["xesam:artist"] = new Array<string>(artist.Split(';'));
+            metadata["xesam:artist"] = SplitTag(artist);
             metadata["xesam:album"] = album;
 
             // Add optional metadata
             if (!string.IsNullOrEmpty(albumArtist))
             {
-                metadata["xesam:albumArtist"] = new Array<string>(albumArtist.Split(';'));
+                metadata["xesam:albumArtist"] = SplitTag(albumArtist);
             }
 
             if (int.TryParse(trackNo, out var trackNumber))
@@ -292,17 +294,17 @@ namespace MusicBeePlugin
 
             if (!string.IsNullOrEmpty(composer))
             {
-                metadata["xesam:composer"] = new Array<string>(composer.Split(';'));
+                metadata["xesam:composer"] = SplitTag(composer);
             }
 
             if (!string.IsNullOrEmpty(lyricist))
             {
-                metadata["xesam:lyricist"] = new Array<string>(lyricist.Split(';'));
+                metadata["xesam:lyricist"] = SplitTag(lyricist);
             }
 
             if (!string.IsNullOrEmpty(genres))
             {
-                metadata["xesam:genre"] = new Array<string>(genres.Split(';'));
+                metadata["xesam:genre"] = SplitTag(genres);
             }
 
             if (int.TryParse(beatsPerMin, out var audioBpm))
@@ -322,7 +324,7 @@ namespace MusicBeePlugin
 
             if (!string.IsNullOrEmpty(comment))
             {
-                metadata["xesam:comment"] = new Array<string>(comment.Split(';'));
+                metadata["xesam:comment"] = SplitTag(comment, ["\r\n", "\r", "\n"]);
             }
 
             // Send metadata
@@ -468,6 +470,12 @@ namespace MusicBeePlugin
         {
             dbusPlayer.CanGoNext = mbApiInterface.NowPlayingList_IsAnyFollowingTracks();
             dbusPlayer.CanGoPrevious = mbApiInterface.NowPlayingList_IsAnyPriorTracks();
+        }
+
+        private static Array<string> SplitTag(string input, string[] delimiters = null)
+        {
+            delimiters ??= DefaultTagDelimiters;
+            return new Array<string>(input.Split(delimiters, StringSplitOptions.None));
         }
     }
 }
