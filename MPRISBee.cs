@@ -87,22 +87,6 @@ namespace MusicBeePlugin
             return about;
         }
 
-        public bool Configure(IntPtr panelHandle)
-        {
-            // save any persistent settings in a sub-folder of this path
-            var dataPath = mbApiInterface.Setting_GetPersistentStoragePath();
-
-            return false;
-        }
-
-        // called by MusicBee when the user clicks Apply or Save in the MusicBee Preferences screen.
-        // its up to you to figure out whether anything has changed and needs updating
-        public void SaveSettings()
-        {
-            // save any persistent settings in a sub-folder of this path
-            var dataPath = mbApiInterface.Setting_GetPersistentStoragePath();
-        }
-
         // MusicBee is closing the plugin (plugin is being disabled by user or MusicBee is shutting down)
         public void Close(PluginCloseReason reason)
         {
@@ -121,11 +105,6 @@ namespace MusicBeePlugin
             }
 
             logger.Close();
-        }
-
-        // uninstall this plugin - clean up any persisted files
-        public void Uninstall()
-        {
         }
 
         // receive event notifications from MusicBee
