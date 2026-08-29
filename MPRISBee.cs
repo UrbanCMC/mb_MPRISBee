@@ -131,6 +131,7 @@ namespace MusicBeePlugin
 
                         logger.Info("Registering as MPRIS media player...");
                         dbusPlayer = new DBusMediaPlayer(dbusConnection, mbApiInterface);
+                        SetInitialState();
                         await dbusPlayer.AddToDBusAsync();
                     }
                     catch (Exception ex)
@@ -138,18 +139,6 @@ namespace MusicBeePlugin
                         suspended = true;
                         logger.Error("Failed to connect to DBUS. Aborting startup", ex);
                         return;
-                    }
-
-                    SendPlayState();
-                    SendShuffle();
-                    SendLoopStatus();
-
-                    Console.WriteLine(mbApiInterface.Player_GetPlayState());
-
-                    if (mbApiInterface.Player_GetPlayState() is PlayState.Paused or PlayState.Playing)
-                    {
-                        SendMetadataChange();
-                        SendAvailablePlayerActions();
                     }
 
                     logger.Info("Startup completed");
@@ -170,6 +159,14 @@ namespace MusicBeePlugin
                     break;
                 }
 
+                case NotificationType.PlayingTracksChanged:
+                {
+                    SendAvailablePlayerActions();
+                    break;
+                }
+
+                case NotificationType.AutoDjStarted:
+                case NotificationType.AutoDjStopped:
                 case NotificationType.PlayerShuffleChanged:
                 {
                     SendShuffle();
@@ -221,7 +218,7 @@ namespace MusicBeePlugin
 
                 case PlayState.Stopped:
                 case PlayState.Undefined:
-                    playbackStatus =  PlaybackStatus.Stopped;
+                    playbackStatus = PlaybackStatus.Stopped;
                     break;
             }
 
@@ -343,6 +340,20 @@ namespace MusicBeePlugin
             }
 
             Task.Run(() => WaitForArtUpdate(trackId));
+        }
+
+        private void SetInitialState()
+        {
+            SendPlayState();
+            SendShuffle();
+            SendLoopStatus();
+            MuteChange();
+            SendAvailablePlayerActions();
+
+            if (mbApiInterface.Player_GetPlayState() is PlayState.Paused or PlayState.Playing)
+            {
+                SendMetadataChange();
+            }
         }
 
         private async Task WaitForArtUpdate(string trackId)
