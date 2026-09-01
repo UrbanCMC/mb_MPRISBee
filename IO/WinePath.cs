@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Text;
 
 namespace MusicBeePlugin.IO;
 
@@ -17,6 +18,11 @@ public static class WinePath
         try
         {
             var unixPath = CallWinePath(windowsPath, true);
+
+            // Convert path from Windows-1252 to UTF8 (should only produce invalid output if the input is already malformed)
+            var cp1252 = Encoding.GetEncoding(1252);
+            unixPath = Encoding.UTF8.GetString(cp1252.GetBytes(unixPath));
+
             return $"file://{unixPath}";
         }
         catch (Exception ex)
